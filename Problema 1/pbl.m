@@ -1,0 +1,174 @@
+clear; clc; close all;
+
+%% 1. Carregar os dados do arquivo 'sinais.mat'
+data = load('sinais.mat'); % Carregar o arquivo
+vars = fieldnames(data);   % Obter os nomes das variáveis
+
+%% Assumindo que as variáveis do arquivo são x1 e x2
+x1 = data.(vars{1}); % Primeiro sinal
+x2 = data.(vars{2}); % Segundo sinal
+
+%% Definir manualmente as taxas de amostragem
+fs1 = 8000;  % 8 kHz para x1
+fs2 = 96000; % 96 kHz para x2
+fs_final = 8000; % 16 kHz frequencia comum ao final das operações multitaxa
+fc_passa_baixa = 4000; % frequência de corte do filtro passa-baixa
+
+%% 2. Processamento de x2 (Subamostragem)
+%% 2.1 Calcular a Transformada Discreta de Fourier (DFT) de x2[n]
+X2_k = fft(x2);  
+f2 = (0:length(x2)-1)*(fs2/length(x2));  % Frequências para x2[n] em Hz
+
+%% 2.2 Criar o filtro passa-baixa com frequência de corte de 8 kHz (para D=6)
+filter_x2 = (f2 <= fc_passa_baixa);  % Filtro que permite apenas frequências abaixo de 8 kHz
+
+%% 2.3 Aplicar o filtro no domínio da frequência e no dominio do tempo
+X2_k_filtered = X2_k .* filter_x2';   % Sinal filtrado no domínio da frequência
+x2_n_filtered = ifft(X2_k_filtered);  % Sinal filtrado no domínio do tempo
+
+% Fator de decimação para reduzir de 96 kHz para 16 kHz
+D = fs2 / fs_final;  % Fator de decimação (96 kHz / 16 kHz = 6)
+
+%% 2.4 Fazendo subamostragem de x2[n]
+sinal_x2 = real(x2_n_filtered);
+x2_n_decimated = sinal_x2(1: D: end);  % Subamostrando o sinal
+x2_n_decimated = double(x2_n_decimated);  % Garantir tipo double
+
+%% 2.5 Calcular o espectro do sinal subamostrado através da FFT
+fs_x2_new = fs2 / D;  % Nova taxa de amostragem: 16 kHz
+X2_k_decimated = fft(x2_n_decimated);  
+f2_decimated = (0:length(x2_n_decimated)-1)*(fs_x2_new/length(x2_n_decimated));
+
+%% 3. Fazendo superamostragem de x1[n]
+%% 3.1 Calcular a Transformada Rapida de Fourier (FFT) de x1[n]
+X1_k = fft(x1);  
+f1 = (0:length(x1)-1)*(fs1/length(x1));  % Frequências para x1[n] em Hz
+
+% Fator de upsampling para x1
+L1 = fs_final / fs1; 
+
+% upsample do sinal
+x1_n_upsampled = manual_upsample(x1, L1);  % Inserir zeros (upsampling)
+
+%% Criar o filtro passa-baixa com frequência de corte de fc_passa_baixa Hz
+fs_x1_new = fs1 * L1;  % Nova taxa de amostragem: fs_final Hz
+f1_upsampled = (0:length(x1_n_upsampled)-1)*(fs_x1_new/length(x1_n_upsampled));
+cutoff_x1 = fc_passa_baixa;  % Frequência de corte em Hz (frequência máxima original)
+filter_x1 = (f1_upsampled <= cutoff_x1);  % Filtro para até 4 kHz
+
+%% Aplicar o filtro no domínio da frequência
+X1_k_upsampled = fft(x1_n_upsampled);  
+X1_k_filtered = X1_k_upsampled .* filter_x1';  
+x1_n_interpolated = ifft(X1_k_filtered);  % Sinal interpolado no domínio do tempo
+x1_n_interpolated = real(x1_n_interpolated);  % Garantir que seja real
+x1_n_interpolated = double(x1_n_interpolated);  % Garantir tipo double
+
+%% Soma dos sinais após processamento multitaxa
+% Ajustar o comprimento dos sinais (se necessário)
+min_length = min(length(x1_n_interpolated), length(x2_n_decimated));
+x1_adjusted = x1_n_interpolated(1:min_length);
+x2_adjusted = x2_n_decimated(1:min_length);
+
+% Normalizar os sinais para evitar clipping
+x1_normalized = x1_adjusted / max(abs(x1_adjusted));
+x2_normalized = x2_adjusted / max(abs(x2_adjusted));
+
+% Soma dos sinais normalizados
+x_soma = x1_normalized + x2_normalized;
+
+% Normalizar novamente a soma para evitar clipping
+x_soma_normalized = x_soma / max(abs(x_soma));
+
+%% Reproduzir o áudio somado
+soundsc(x_soma_normalized, fs_x1_new);  % Reproduz o sinal somado a 16 kHz
+
+%% Plotar os sinais no domínio do tempo
+figure('Name', 'Sinais no Domínio do Tempo');
+% x1 interpolado
+subplot(3,1,1);
+t1 = (0:length(x1_normalized)-1)/fs_x1_new;
+plot(t1, x1_normalized);
+title('x1[n] Superamostrado (16 kHz)');
+xlabel('Tempo (s)');
+ylabel('Amplitude');
+
+% x2 decimado
+subplot(3,1,2);
+t2 = (0:length(x2_normalized)-1)/fs_x2_new;
+plot(t2, x2_normalized);
+title('x2[n] Subamostrado (16 kHz)');
+xlabel('Tempo (s)');
+ylabel('Amplitude');
+
+% Soma dos sinais
+subplot(3,1,3);
+t_soma = (0:length(x_soma_normalized)-1)/fs_x1_new;
+plot(t_soma, x_soma_normalized);
+title('Soma dos Sinais (16 kHz)');
+xlabel('Tempo (s)');
+ylabel('Amplitude');
+
+sgtitle('Sinais Processados e Somados');
+
+%% Plotar domínios de frequência do sinal somado
+figure('Name', 'Espectro de Frequência da Soma');
+X_soma = fft(x_soma_normalized);
+f_soma = (0:length(x_soma_normalized)-1)*(fs_x1_new/length(x_soma_normalized));
+
+plot(f_soma(1:floor(length(x_soma_normalized)/2)), abs(X_soma(1:floor(length(x_soma_normalized)/2))));
+title('Domínio da Frequência da Soma dos Sinais');
+xlabel('Frequência (Hz)');
+ylabel('|X(f)|');
+
+
+%% Plotar domínios de frequência de x2
+figure('Name', 'Espectro de Frequência de x2[n]');
+% Original
+subplot(2,1,1);
+plot(f2(1:floor(length(x2)/2)), abs(X2_k(1:floor(length(x2)/2))));
+title('Domínio da Frequência de x2[n] Original');
+xlabel('Frequência (Hz)');
+ylabel('|X2(f)|');
+
+% Subamostrado
+subplot(2,1,2);
+plot(f2_decimated(1:floor(length(x2_n_decimated)/2)), abs(X2_k_decimated(1:floor(length(x2_n_decimated)/2))));
+title('Domínio da Frequência de x2[n] Subamostrado (16 kHz)');
+xlabel('Frequência (Hz)');
+ylabel('|X2(f) Subamostrado|');
+
+sgtitle('Espectro de Frequência de x2[n]');
+
+%% Plotar domínios de frequência de x1
+figure('Name', 'Espectro de Frequência de x1[n]');
+% Original
+subplot(2,1,1);
+plot(f1(1:floor(length(x1)/2)), abs(X1_k(1:floor(length(x1)/2))));
+title('Domínio da Frequência de x1[n] Original');
+xlabel('Frequência (Hz)');
+ylabel('|X1(f)|');
+
+% Superamostrado
+subplot(2,1,2);
+X1_k_interpolated = fft(x1_n_interpolated);  % Espectro do sinal interpolado
+f1_interpolated = (0:length(x1_n_interpolated)-1)*(fs_x1_new/length(x1_n_interpolated));
+plot(f1_interpolated(1:floor(length(x1_n_interpolated)/2)), abs(X1_k_interpolated(1:floor(length(x1_n_interpolated)/2))));
+title('Domínio da Frequência de x1[n] Superamostrado (16 kHz)');
+xlabel('Frequência (Hz)');
+ylabel('|X1(f) Interpolado|');
+
+sgtitle('Espectro de Frequência de x1[n]');
+
+%%  Salvar o sinal somado como arquivo WAV
+audiowrite('sinal_somado3.wav', x_soma_normalized, fs_x1_new);
+
+disp('Processamento concluído! O arquivo "sinal_somado.wav" foi salvo.');
+
+%% Função manual de upsample
+function output = manual_upsample(signal, factor)
+    % Implementação manual da função upsample
+    % Insere (factor-1) zeros entre cada amostra do sinal original
+    signalLength = length(signal);
+    output = zeros(signalLength * factor, 1);
+    output(1:factor:end) = signal;
+end

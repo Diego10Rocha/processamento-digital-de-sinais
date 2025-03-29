@@ -11,8 +11,9 @@ x2 = data.(vars{2}); % Segundo sinal
 %% Definir manualmente as taxas de amostragem
 fs1 = 8000;  % 8 kHz para x1
 fs2 = 96000; % 96 kHz para x2
-fs_final = 8000; % 16 kHz frequencia comum ao final das operações multitaxa
-fc_passa_baixa = 4000; % frequência de corte do filtro passa-baixa
+fs_final = 24000; % 16 kHz frequencia comum ao final das operações multitaxa
+fc_passa_baixa_x1 = 4000; % frequência de corte do filtro passa-baixa
+fc_passa_baixa_x2 = 8000; % frequência de corte do filtro passa-baixa
 
 %% 2. Processamento de x2 (Subamostragem)
 %% 2.1 Calcular a Transformada Discreta de Fourier (DFT) de x2[n]
@@ -20,7 +21,7 @@ X2_k = fft(x2);
 f2 = (0:length(x2)-1)*(fs2/length(x2));  % Frequências para x2[n] em Hz
 
 %% 2.2 Criar o filtro passa-baixa com frequência de corte de 8 kHz (para D=6)
-filter_x2 = (f2 <= fc_passa_baixa);  % Filtro que permite apenas frequências abaixo de 8 kHz
+filter_x2 = (f2 <= fc_passa_baixa_x2);  % Filtro que permite apenas frequências abaixo de 8 kHz
 
 %% 2.3 Aplicar o filtro no domínio da frequência e no dominio do tempo
 X2_k_filtered = X2_k .* filter_x2';   % Sinal filtrado no domínio da frequência
@@ -53,7 +54,7 @@ x1_n_upsampled = manual_upsample(x1, L1);  % Inserir zeros (upsampling)
 %% Criar o filtro passa-baixa com frequência de corte de fc_passa_baixa Hz
 fs_x1_new = fs1 * L1;  % Nova taxa de amostragem: fs_final Hz
 f1_upsampled = (0:length(x1_n_upsampled)-1)*(fs_x1_new/length(x1_n_upsampled));
-cutoff_x1 = fc_passa_baixa;  % Frequência de corte em Hz (frequência máxima original)
+cutoff_x1 = fc_passa_baixa_x1;  % Frequência de corte em Hz (frequência máxima original)
 filter_x1 = (f1_upsampled <= cutoff_x1);  % Filtro para até 4 kHz
 
 %% Aplicar o filtro no domínio da frequência
@@ -78,6 +79,17 @@ x_soma = x1_normalized + x2_normalized;
 
 % Normalizar novamente a soma para evitar clipping
 x_soma_normalized = x_soma / max(abs(x_soma));
+
+%% 2. Definir a faixa de frequências normalizada (-pi a pi)
+Nfft = 4096; % Tamanho da FFT para melhor resolução espectral
+omega1 = linspace(-pi, pi, Nfft);
+omega2 = linspace(-pi, pi, Nfft);
+omega3 = linspace(-pi, pi, Nfft);
+
+% 3. Calcular a DTFT usando FFT
+X1 = fftshift(fft(x1, Nfft)); % FFT para x1
+X2 = fftshift(fft(x2, Nfft)); % FFT para x2
+X3 = fftshift(fft(x_soma, Nfft)); % FFT para x2
 
 %% Reproduzir o áudio somado
 soundsc(x_soma_normalized, fs_x1_new);  % Reproduz o sinal somado a 16 kHz
@@ -158,6 +170,52 @@ xlabel('Frequência (Hz)');
 ylabel('|X1(f) Interpolado|');
 
 sgtitle('Espectro de Frequência de x1[n]');
+
+% 4. Plotar DTFT
+figure;
+subplot(2,1,1);
+plot(omega1, abs(X1));
+xlabel('\omega (rad/sample)');
+ylabel('|X_1(e^{j\omega})|');
+title('Magnitude da DTFT de x_1');
+grid on;
+
+subplot(2,1,2);
+plot(omega1, angle(X1));
+xlabel('\omega (rad/sample)');
+ylabel('\angle X_1(e^{j\omega})');
+title('Fase da DTFT de x_1');
+grid on;
+
+figure;
+subplot(2,1,1);
+plot(omega2, abs(X2));
+xlabel('\omega (rad/sample)');
+ylabel('|X_2(e^{j\omega})|');
+title('Magnitude da DTFT de x_2');
+grid on;
+
+subplot(2,1,2);
+plot(omega2, angle(X2));
+xlabel('\omega (rad/sample)');
+ylabel('\angle X_2(e^{j\omega})');
+title('Fase da DTFT de x_2');
+grid on;
+
+figure;
+subplot(2,1,1);
+plot(omega2, abs(X3));
+xlabel('\omega (rad/sample)');
+ylabel('|X_2(e^{j\omega})|');
+title('Magnitude da DTFT de x_1 + x_2');
+grid on;
+
+subplot(2,1,2);
+plot(omega2, angle(X3));
+xlabel('\omega (rad/sample)');
+ylabel('\angle X_2(e^{j\omega})');
+title('Fase da DTFT de x_1 + x_2');
+grid on;
 
 %%  Salvar o sinal somado como arquivo WAV
 audiowrite('sinal_somado3.wav', x_soma_normalized, fs_x1_new);

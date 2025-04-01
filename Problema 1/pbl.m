@@ -13,109 +13,92 @@ fs1 = 8000;  % 8 kHz para x1
 fs2 = 96000; % 96 kHz para x2
 fs_final = 24000; % 16 kHz frequencia comum ao final das operações multitaxa
 fc_passa_baixa_x1 = 4000; % frequência de corte do filtro passa-baixa
-fc_passa_baixa_x2 = 8000; % frequência de corte do filtro passa-baixa
+fc_passa_baixa_x2 = 12000; % frequência de corte do filtro passa-baixa
 
 %% 2. Processamento de x2 (Subamostragem)
 %% 2.1 Calcular a Transformada Discreta de Fourier (DFT) de x2[n]
-X2_k = fft(x2);  
-f2 = (0:length(x2)-1)*(fs2/length(x2));  % Frequências para x2[n] em Hz
+fft_x2 = fft(x2);  
+f_x2 = (0:length(x2)-1)*(fs2/length(x2));  % Frequências para x2[n] em Hz
 
-%% 2.2 Criar o filtro passa-baixa com frequência de corte de 8 kHz (para D=6)
-filter_x2 = (f2 <= fc_passa_baixa_x2);  % Filtro que permite apenas frequências abaixo de 8 kHz
+%% 2.2 Criar o filtro passa-baixa com frequência de corte de fc_passa_baixa_x2 Hz
+filtro_passa_baixa_x2 = (f_x2 <= fc_passa_baixa_x2);  % Filtro que permite apenas frequências abaixo de fc_passa_baixa_x2 Hz
 
 %% 2.3 Aplicar o filtro no domínio da frequência e no dominio do tempo
-X2_k_filtered = X2_k .* filter_x2';   % Sinal filtrado no domínio da frequência
-x2_n_filtered = ifft(X2_k_filtered);  % Sinal filtrado no domínio do tempo
+X2_filtrado_frequencia = fft_x2 .* filtro_passa_baixa_x2';   % Sinal filtrado no domínio da frequência
+X2_filtrado_dominio_tempo = ifft(X2_filtrado_frequencia);  % Sinal filtrado no domínio do tempo
 
-% Fator de decimação para reduzir de 96 kHz para 16 kHz
-D = fs2 / fs_final;  % Fator de decimação (96 kHz / 16 kHz = 6)
+% Fator de decimação para reduzir de fs2 Hz para fs_final Hz
+D = fs2 / fs_final;  % Fator de decimação (fs2 Hz / fs_final Hz = D)
 
 %% 2.4 Fazendo subamostragem de x2[n]
-sinal_x2 = real(x2_n_filtered);
-x2_n_decimated = sinal_x2(1: D: end);  % Subamostrando o sinal
-x2_n_decimated = double(x2_n_decimated);  % Garantir tipo double
+sinal_x2 = real(X2_filtrado_dominio_tempo);
+x2_subamostrado = sinal_x2(1: D: end);  % Subamostrando o sinal
+x2_subamostrado = double(x2_subamostrado);  % Garantir tipo double
 
 %% 2.5 Calcular o espectro do sinal subamostrado através da FFT
-fs_x2_new = fs2 / D;  % Nova taxa de amostragem: 16 kHz
-X2_k_decimated = fft(x2_n_decimated);  
-f2_decimated = (0:length(x2_n_decimated)-1)*(fs_x2_new/length(x2_n_decimated));
+fft_X2_subamostrado = fft(x2_subamostrado);  
+f2_subamostrado = (0:length(x2_subamostrado)-1)*(fs_final/length(x2_subamostrado));
 
 %% 3. Fazendo superamostragem de x1[n]
 %% 3.1 Calcular a Transformada Rapida de Fourier (FFT) de x1[n]
-X1_k = fft(x1);  
+fft_x1 = fft(x1);  
 f1 = (0:length(x1)-1)*(fs1/length(x1));  % Frequências para x1[n] em Hz
 
 % Fator de upsampling para x1
 L1 = fs_final / fs1; 
 
 % upsample do sinal
-x1_n_upsampled = manual_upsample(x1, L1);  % Inserir zeros (upsampling)
+x1_superamostrado = funcao_superamostragem(x1, L1);  % Inserir zeros (upsampling)
 
 %% Criar o filtro passa-baixa com frequência de corte de fc_passa_baixa Hz
-fs_x1_new = fs1 * L1;  % Nova taxa de amostragem: fs_final Hz
-f1_upsampled = (0:length(x1_n_upsampled)-1)*(fs_x1_new/length(x1_n_upsampled));
-cutoff_x1 = fc_passa_baixa_x1;  % Frequência de corte em Hz (frequência máxima original)
-filter_x1 = (f1_upsampled <= cutoff_x1);  % Filtro para até 4 kHz
+f1_superamostrado = (0:length(x1_superamostrado)-1)*(fs_final/length(x1_superamostrado));
+filtro_x1 = (f1_superamostrado <= fc_passa_baixa_x1);  % Filtro para até fc_passa_baixa_x1 Hz
 
 %% Aplicar o filtro no domínio da frequência
-X1_k_upsampled = fft(x1_n_upsampled);  
-X1_k_filtered = X1_k_upsampled .* filter_x1';  
-x1_n_interpolated = ifft(X1_k_filtered);  % Sinal interpolado no domínio do tempo
-x1_n_interpolated = real(x1_n_interpolated);  % Garantir que seja real
-x1_n_interpolated = double(x1_n_interpolated);  % Garantir tipo double
+fft_x1_superamostrado = fft(x1_superamostrado);  
+x1_filtrado_frequencia = fft_x1_superamostrado .* filtro_x1';  
+x1_filtrado_dominio_tempo = ifft(x1_filtrado_frequencia);  % Sinal interpolado no domínio do tempo
+x1_filtrado_dominio_tempo = real(x1_filtrado_dominio_tempo);  % Garantir que seja real
+x1_filtrado_dominio_tempo = double(x1_filtrado_dominio_tempo);  % Garantir tipo double
 
 %% Soma dos sinais após processamento multitaxa
 % Ajustar o comprimento dos sinais (se necessário)
-min_length = min(length(x1_n_interpolated), length(x2_n_decimated));
-x1_adjusted = x1_n_interpolated(1:min_length);
-x2_adjusted = x2_n_decimated(1:min_length);
+min_length = min(length(x1_filtrado_dominio_tempo), length(x2_subamostrado));
+x1_ajustado = x1_filtrado_dominio_tempo(1:min_length);
+x2_ajustado = x2_subamostrado(1:min_length);
 
 % Normalizar os sinais para evitar clipping
-x1_normalized = x1_adjusted / max(abs(x1_adjusted));
-x2_normalized = x2_adjusted / max(abs(x2_adjusted));
+x1_normalizado = x1_ajustado / max(abs(x1_ajustado));
+x2_normalizado = x2_ajustado / max(abs(x2_ajustado));
 
 % Soma dos sinais normalizados
-x_soma = x1_normalized + x2_normalized;
+x_soma = x1_normalizado + x2_normalizado;
 
 % Normalizar novamente a soma para evitar clipping
-x_soma_normalized = x_soma / max(abs(x_soma));
-
-%% 2. Definir a faixa de frequências normalizada (-pi a pi)
-Nfft = 4096; % Tamanho da FFT para melhor resolução espectral
-omega1 = linspace(-pi, pi, Nfft);
-omega2 = linspace(-pi, pi, Nfft);
-omega3 = linspace(-pi, pi, Nfft);
-
-% 3. Calcular a DTFT usando FFT
-X1 = fftshift(fft(x1, Nfft)); % FFT para x1
-X2 = fftshift(fft(x2, Nfft)); % FFT para x2
-X3 = fftshift(fft(x_soma, Nfft)); % FFT para x2
-
-%% Reproduzir o áudio somado
-soundsc(x_soma_normalized, fs_x1_new);  % Reproduz o sinal somado a 16 kHz
+x_soma_normalizado = x_soma / max(abs(x_soma));
 
 %% Plotar os sinais no domínio do tempo
 figure('Name', 'Sinais no Domínio do Tempo');
 % x1 interpolado
 subplot(3,1,1);
-t1 = (0:length(x1_normalized)-1)/fs_x1_new;
-plot(t1, x1_normalized);
+t1 = (0:length(x1_normalizado)-1)/fs_final;
+plot(t1, x1_normalizado);
 title('x1[n] Superamostrado (16 kHz)');
 xlabel('Tempo (s)');
 ylabel('Amplitude');
 
 % x2 decimado
 subplot(3,1,2);
-t2 = (0:length(x2_normalized)-1)/fs_x2_new;
-plot(t2, x2_normalized);
+t2 = (0:length(x2_normalizado)-1)/fs_final;
+plot(t2, x2_normalizado);
 title('x2[n] Subamostrado (16 kHz)');
 xlabel('Tempo (s)');
 ylabel('Amplitude');
 
 % Soma dos sinais
 subplot(3,1,3);
-t_soma = (0:length(x_soma_normalized)-1)/fs_x1_new;
-plot(t_soma, x_soma_normalized);
+t_soma = (0:length(x_soma_normalizado)-1)/fs_final;
+plot(t_soma, x_soma_normalizado);
 title('Soma dos Sinais (16 kHz)');
 xlabel('Tempo (s)');
 ylabel('Amplitude');
@@ -124,10 +107,10 @@ sgtitle('Sinais Processados e Somados');
 
 %% Plotar domínios de frequência do sinal somado
 figure('Name', 'Espectro de Frequência da Soma');
-X_soma = fft(x_soma_normalized);
-f_soma = (0:length(x_soma_normalized)-1)*(fs_x1_new/length(x_soma_normalized));
+X_soma = fft(x_soma_normalizado);
+f_soma = (0:length(x_soma_normalizado)-1)*(fs_final/length(x_soma_normalizado));
 
-plot(f_soma(1:floor(length(x_soma_normalized)/2)), abs(X_soma(1:floor(length(x_soma_normalized)/2))));
+plot(f_soma(1:floor(length(x_soma_normalizado)/2)), abs(X_soma(1:floor(length(x_soma_normalizado)/2))));
 title('Domínio da Frequência da Soma dos Sinais');
 xlabel('Frequência (Hz)');
 ylabel('|X(f)|');
@@ -137,14 +120,14 @@ ylabel('|X(f)|');
 figure('Name', 'Espectro de Frequência de x2[n]');
 % Original
 subplot(2,1,1);
-plot(f2(1:floor(length(x2)/2)), abs(X2_k(1:floor(length(x2)/2))));
+plot(f_x2(1:floor(length(x2)/2)), abs(fft_x2(1:floor(length(x2)/2))));
 title('Domínio da Frequência de x2[n] Original');
 xlabel('Frequência (Hz)');
 ylabel('|X2(f)|');
 
 % Subamostrado
 subplot(2,1,2);
-plot(f2_decimated(1:floor(length(x2_n_decimated)/2)), abs(X2_k_decimated(1:floor(length(x2_n_decimated)/2))));
+plot(f2_subamostrado(1:floor(length(x2_subamostrado)/2)), abs(fft_X2_subamostrado(1:floor(length(x2_subamostrado)/2))));
 title('Domínio da Frequência de x2[n] Subamostrado (16 kHz)');
 xlabel('Frequência (Hz)');
 ylabel('|X2(f) Subamostrado|');
@@ -155,75 +138,29 @@ sgtitle('Espectro de Frequência de x2[n]');
 figure('Name', 'Espectro de Frequência de x1[n]');
 % Original
 subplot(2,1,1);
-plot(f1(1:floor(length(x1)/2)), abs(X1_k(1:floor(length(x1)/2))));
+plot(f1(1:floor(length(x1)/2)), abs(fft_x1(1:floor(length(x1)/2))));
 title('Domínio da Frequência de x1[n] Original');
 xlabel('Frequência (Hz)');
 ylabel('|X1(f)|');
 
 % Superamostrado
 subplot(2,1,2);
-X1_k_interpolated = fft(x1_n_interpolated);  % Espectro do sinal interpolado
-f1_interpolated = (0:length(x1_n_interpolated)-1)*(fs_x1_new/length(x1_n_interpolated));
-plot(f1_interpolated(1:floor(length(x1_n_interpolated)/2)), abs(X1_k_interpolated(1:floor(length(x1_n_interpolated)/2))));
+X1_k_interpolated = fft(x1_filtrado_dominio_tempo);  % Espectro do sinal interpolado
+f1_interpolated = (0:length(x1_filtrado_dominio_tempo)-1)*(fs_final/length(x1_filtrado_dominio_tempo));
+plot(f1_interpolated(1:floor(length(x1_filtrado_dominio_tempo)/2)), abs(X1_k_interpolated(1:floor(length(x1_filtrado_dominio_tempo)/2))));
 title('Domínio da Frequência de x1[n] Superamostrado (16 kHz)');
 xlabel('Frequência (Hz)');
 ylabel('|X1(f) Interpolado|');
 
 sgtitle('Espectro de Frequência de x1[n]');
 
-% 4. Plotar DTFT
-figure;
-subplot(2,1,1);
-plot(omega1, abs(X1));
-xlabel('\omega (rad/sample)');
-ylabel('|X_1(e^{j\omega})|');
-title('Magnitude da DTFT de x_1');
-grid on;
-
-subplot(2,1,2);
-plot(omega1, angle(X1));
-xlabel('\omega (rad/sample)');
-ylabel('\angle X_1(e^{j\omega})');
-title('Fase da DTFT de x_1');
-grid on;
-
-figure;
-subplot(2,1,1);
-plot(omega2, abs(X2));
-xlabel('\omega (rad/sample)');
-ylabel('|X_2(e^{j\omega})|');
-title('Magnitude da DTFT de x_2');
-grid on;
-
-subplot(2,1,2);
-plot(omega2, angle(X2));
-xlabel('\omega (rad/sample)');
-ylabel('\angle X_2(e^{j\omega})');
-title('Fase da DTFT de x_2');
-grid on;
-
-figure;
-subplot(2,1,1);
-plot(omega2, abs(X3));
-xlabel('\omega (rad/sample)');
-ylabel('|X_2(e^{j\omega})|');
-title('Magnitude da DTFT de x_1 + x_2');
-grid on;
-
-subplot(2,1,2);
-plot(omega2, angle(X3));
-xlabel('\omega (rad/sample)');
-ylabel('\angle X_2(e^{j\omega})');
-title('Fase da DTFT de x_1 + x_2');
-grid on;
-
 %%  Salvar o sinal somado como arquivo WAV
-audiowrite('sinal_somado3.wav', x_soma_normalized, fs_x1_new);
+audiowrite('sinal_somado3.wav', x_soma_normalizado, fs_final);
 
 disp('Processamento concluído! O arquivo "sinal_somado.wav" foi salvo.');
 
 %% Função manual de upsample
-function output = manual_upsample(signal, factor)
+function output = funcao_superamostragem(signal, factor)
     % Implementação manual da função upsample
     % Insere (factor-1) zeros entre cada amostra do sinal original
     signalLength = length(signal);

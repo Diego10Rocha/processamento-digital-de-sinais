@@ -1,12 +1,3 @@
-% Carregar o sinal
-data = load('sinais.mat'); 
-x2 = data.x2;  
-fs2 = 96000; 
-
-% Chamar a função para plotar as réplicas
-plot_fft_replicas(x2, fs2, 2);  % 2 réplicas de cada lado (totalizando 4)
-
-
 function plot_fft_replicas(x, fs, num_replicas)
     % Computa a FFT do sinal
     X = fft(x);
@@ -16,7 +7,7 @@ function plot_fft_replicas(x, fs, num_replicas)
     f = (0:N-1) * (fs / N);
     
     % Normaliza a FFT
-    X_mag = abs(X) / max(abs(X));
+    X_mag = abs(X);
 
     % Número total de pontos após as réplicas
     num_shifts = 2 * num_replicas + 1;

@@ -12,28 +12,27 @@ function plot_fft_replicas(x, fs, num_replicas)
     X = fft(x);
     N = length(x);
     
-    % Eixo de frequência original (faixa de 0 a fs)
+    % Eixo de frequência original
     f = (0:N-1) * (fs / N);
     
-    % Normaliza a FFT para facilitar a visualização
+    % Normaliza a FFT
     X_mag = abs(X) / max(abs(X));
+
+    % Número total de pontos após as réplicas
+    num_shifts = 2 * num_replicas + 1;
+    N_total = N * num_shifts;
+    
+    % Pré-alocar memória para desempenho
+    f_replicas = zeros(1, N_total);
+    X_replicas = zeros(1, N_total);
     
     % Criar réplicas espectrais
-    f_replicas = [];
-    X_replicas = [];
-
     for k = -num_replicas:num_replicas
-        f_shifted = f + k * fs;  % Desloca o eixo de frequência
-        
-        % Armazena os valores mantendo a mesma estrutura
-        f_replicas = [f_replicas, f_shifted(:)']; % Garante que f seja uma linha
-        X_replicas = [X_replicas, X_mag(:)']; % Garante que X_mag seja uma linha
+        idx = (k + num_replicas) * N + (1:N); % Índices corretos
+        f_replicas(idx) = f + k * fs; % Desloca o eixo de frequência
+        X_replicas(idx) = X_mag; % Mantém a magnitude
     end
 
-    % Reordena os valores para evitar descontinuidade na plotagem
-    [f_replicas, idx] = sort(f_replicas);
-    X_replicas = X_replicas(idx);
-    
     % Plotar as réplicas da FFT
     figure;
     plot(f_replicas, X_replicas, 'b');

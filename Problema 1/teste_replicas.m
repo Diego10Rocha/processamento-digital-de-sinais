@@ -16,7 +16,7 @@ function plot_fft_replicas(x, fs, num_replicas)
     f = (0:N-1) * (fs / N);
     
     % Normaliza a FFT
-    X_mag = abs(X) / max(abs(X));
+    X_mag = abs(X);
 
     % Número total de pontos após as réplicas
     num_shifts = 2 * num_replicas + 1;

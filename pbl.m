@@ -83,7 +83,7 @@ figure('Name', 'Sinais no Domínio do Tempo');
 subplot(3,1,1);
 t1 = (0:length(x1_normalizado)-1)/fs_final;
 plot(t1, x1_normalizado);
-title('x1[n] Superamostrado (16 kHz)');
+title('x1[n] Superamostrado (24 kHz)');
 xlabel('Tempo (s)');
 ylabel('Amplitude');
 
@@ -91,7 +91,7 @@ ylabel('Amplitude');
 subplot(3,1,2);
 t2 = (0:length(x2_normalizado)-1)/fs_final;
 plot(t2, x2_normalizado);
-title('x2[n] Subamostrado (16 kHz)');
+title('x2[n] Subamostrado (24 kHz)');
 xlabel('Tempo (s)');
 ylabel('Amplitude');
 
@@ -99,7 +99,7 @@ ylabel('Amplitude');
 subplot(3,1,3);
 t_soma = (0:length(x_soma_normalizado)-1)/fs_final;
 plot(t_soma, x_soma_normalizado);
-title('Soma dos Sinais (16 kHz)');
+title('Soma dos Sinais (24 kHz)');
 xlabel('Tempo (s)');
 ylabel('Amplitude');
 
@@ -128,7 +128,7 @@ ylabel('|X2(f)|');
 % Subamostrado
 subplot(2,1,2);
 plot(f2_subamostrado(1:floor(length(x2_subamostrado)/2)), abs(fft_X2_subamostrado(1:floor(length(x2_subamostrado)/2))));
-title('Domínio da Frequência de x2[n] Subamostrado (16 kHz)');
+title('Domínio da Frequência de x2[n] Subamostrado (24 kHz)');
 xlabel('Frequência (Hz)');
 ylabel('|X2(f) Subamostrado|');
 
@@ -148,7 +148,7 @@ subplot(2,1,2);
 X1_k_interpolated = fft(x1_filtrado_dominio_tempo);  % Espectro do sinal interpolado
 f1_interpolated = (0:length(x1_filtrado_dominio_tempo)-1)*(fs_final/length(x1_filtrado_dominio_tempo));
 plot(f1_interpolated(1:floor(length(x1_filtrado_dominio_tempo)/2)), abs(X1_k_interpolated(1:floor(length(x1_filtrado_dominio_tempo)/2))));
-title('Domínio da Frequência de x1[n] Superamostrado (16 kHz)');
+title('Domínio da Frequência de x1[n] Superamostrado (24 kHz)');
 xlabel('Frequência (Hz)');
 ylabel('|X1(f) Interpolado|');
 

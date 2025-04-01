@@ -6,7 +6,7 @@ fs2 = 96000;
 fs1 = 8000;
 
 % Chamar a função para plotar as réplicas
-plot_fft_replicas(x1, 2*pi*fs1, 2,fs1);  % 2 réplicas de cada lado (totalizando 4)
+plot_fft_replicas(x2, 2*pi*fs2, 2,fs2);  % 2 réplicas de cada lado (totalizando 4)
 
 
 function plot_fft_replicas(x, f_period, num_replicas, fs)

@@ -159,6 +159,8 @@ audiowrite('sinal_somado3.wav', x_soma_normalizado, fs_final);
 
 disp('Processamento concluído! O arquivo "sinal_somado.wav" foi salvo.');
 
+plot_fft_replicas(x1_superamostrado, 1/24000, 2, 24000)
+
 %% Função manual de upsample
 function output = funcao_superamostragem(signal, factor)
     % Implementação manual da função upsample

@@ -1,14 +1,3 @@
-% Carregar o sinal
-data = load('sinais.mat'); 
-x1 = data.(vars{1});
-x2 = data.x2;  
-fs2 = 96000; 
-fs1 = 8000;
-
-% Chamar a função para plotar as réplicas
-plot_fft_replicas(x2, 2*pi*fs2, 2,fs2);  % 2 réplicas de cada lado (totalizando 4)
-
-
 function plot_fft_replicas(x, f_period, num_replicas, fs)
     % Computa a FFT do sinal e aplica fftshift para centralizar em 0
     X = fftshift(fft(x));

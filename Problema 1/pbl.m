@@ -50,18 +50,18 @@ L1 = fs_final / fs1;
 % upsample do sinal
 x1_superamostrado = funcao_superamostragem(x1, L1);  % Inserir zeros (upsampling)
 
-%% Criar o filtro passa-baixa com frequência de corte de fc_passa_baixa Hz
+%% 3.2 Criar o filtro passa-baixa com frequência de corte de fc_passa_baixa Hz
 f1_superamostrado = (0:length(x1_superamostrado)-1)*(fs_final/length(x1_superamostrado));
 filtro_x1 = (f1_superamostrado <= fc_passa_baixa_x1);  % Filtro para até fc_passa_baixa_x1 Hz
 
-%% Aplicar o filtro no domínio da frequência
+%% 3.3 Aplicar o filtro no domínio da frequência
 fft_x1_superamostrado = fft(x1_superamostrado);  
 x1_filtrado_frequencia = fft_x1_superamostrado .* filtro_x1';  
 x1_filtrado_dominio_tempo = ifft(x1_filtrado_frequencia);  % Sinal interpolado no domínio do tempo
 x1_filtrado_dominio_tempo = real(x1_filtrado_dominio_tempo);  % Garantir que seja real
 x1_filtrado_dominio_tempo = double(x1_filtrado_dominio_tempo);  % Garantir tipo double
 
-%% Soma dos sinais após processamento multitaxa
+%% 3.4 Soma dos sinais após processamento multitaxa
 % Ajustar o comprimento dos sinais (se necessário)
 min_length = min(length(x1_filtrado_dominio_tempo), length(x2_subamostrado));
 x1_ajustado = x1_filtrado_dominio_tempo(1:min_length);
@@ -77,7 +77,7 @@ x_soma = x1_normalizado + x2_normalizado;
 % Normalizar novamente a soma para evitar clipping
 x_soma_normalizado = x_soma / max(abs(x_soma));
 
-%% Plotar os sinais no domínio do tempo
+%% 4. Plotar os sinais no domínio do tempo
 figure('Name', 'Sinais no Domínio do Tempo');
 % x1 interpolado
 subplot(3,1,1);
@@ -154,7 +154,7 @@ ylabel('|X1(f) Interpolado|');
 
 sgtitle('Espectro de Frequência de x1[n]');
 
-%%  Salvar o sinal somado como arquivo WAV
+%% 5. Salvar o sinal somado como arquivo WAV
 audiowrite('sinal_somado3.wav', x_soma_normalizado, fs_final);
 
 disp('Processamento concluído! O arquivo "sinal_somado.wav" foi salvo.');
